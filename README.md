@@ -42,6 +42,7 @@ PERSONA_PATH=./persona/base.md
 
 ## 准备工作（只做一次）
 
+从模板开始：`cp persona/base.example.md persona/base.md`，然后编辑 `persona/base.md`。本地 `base.md` 不进 git。
 ### 1. 写人格文件
 
 打开 `persona/base.md`，手动填写她的核心立场、推理惯式、带电词汇、声音特征、禁区。
