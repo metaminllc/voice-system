@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Env / secrets
+.env
+
+# Persona content (handwritten, personal) — template lives in base.example.md
+persona/base.md
+
+# Corpus content (sensitive / copyrighted) — keep dir structure only
+corpus/*/*
+!corpus/*/.gitkeep
+
+# Local data (ChromaDB, dialogue fragments)
+data/*
+!data/.gitkeep
+
+# OS
+.DS_Store
+*.log

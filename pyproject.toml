@@ -1,0 +1,28 @@
+[project]
+name = "voice-system"
+version = "0.1.0"
+description = "Voice Distillation RAG — a local tool that distills a writer's voice and summons it to push back on your drafts."
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb>=0.4.22",
+    "anthropic>=0.40.0",
+    "voyageai>=0.2.3",
+    "openai>=1.40.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "rich>=13.7.0",
+    "typer>=0.9.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.6.0",
+]
+
+[project.scripts]
+voice = "cli:app"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["cli", "app"]
+packages = ["voice"]
