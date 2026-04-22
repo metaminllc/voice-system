@@ -37,6 +37,7 @@ class RetrievedChunk:
     source_type: str           # novel / essay / review / diary / dialogue
     source_file: str           # filename for corpus; "(dialogue)" for dialogue
     confidence: Optional[str]  # only set for dialogue rows
+    stance: Optional[str]      # only set for corpus rows (affirm/resist/ambivalent/expository)
     distance: float            # lower is closer; float('inf') for linked items
     metadata: Dict = field(default_factory=dict)
 
@@ -175,6 +176,7 @@ def _to_chunk(item: Dict) -> RetrievedChunk:
         source_type=src_type,
         source_file=src_file,
         confidence=meta.get("confidence"),
+        stance=meta.get("stance") if src_type != "dialogue" else None,
         distance=item["distance"],
         metadata=meta,
     )

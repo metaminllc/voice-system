@@ -153,7 +153,7 @@ INDEX_HTML = """<!doctype html>
   .sources strong { color: #7a6a4a; letter-spacing: 1px; }
   .sources div { margin: 3px 0; }
   .dialogue-form {
-    display: grid; grid-template-columns: 2fr 1fr 1fr 140px 110px;
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 140px 110px;
     gap: 8px; align-items: start;
   }
   @media (max-width: 900px) {
@@ -195,6 +195,7 @@ INDEX_HTML = """<!doctype html>
       <input type="text" id="d-quote" placeholder="原话或转述" />
       <input type="text" id="d-context" placeholder="语境（可选）" />
       <input type="text" id="d-note" placeholder="你的笔记（可选）" />
+      <input type="text" id="d-links" placeholder="关联语料（逗号分隔 stem，可选）" />
       <select id="d-conf">
         <option value="exact">exact — 原话</option>
         <option value="paraphrase" selected>paraphrase — 转述</option>
@@ -254,6 +255,10 @@ async function addDialogue() {
   const context = document.getElementById('d-context').value.trim() || null;
   const your_note = document.getElementById('d-note').value.trim() || null;
   const confidence = document.getElementById('d-conf').value;
+  const linksRaw = document.getElementById('d-links').value.trim();
+  const linked_sources = linksRaw
+    ? linksRaw.split(',').map(s => s.trim()).filter(Boolean)
+    : null;
   const status = document.getElementById('dialogue-status');
   status.className = 'status';
   status.textContent = '保存中...';
@@ -261,7 +266,7 @@ async function addDialogue() {
     const r = await fetch('/add-dialogue', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({quote, context, your_note, confidence}),
+      body: JSON.stringify({quote, context, your_note, confidence, linked_sources}),
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({detail: r.statusText}));
@@ -272,6 +277,7 @@ async function addDialogue() {
     document.getElementById('d-quote').value = '';
     document.getElementById('d-context').value = '';
     document.getElementById('d-note').value = '';
+    document.getElementById('d-links').value = '';
   } catch (e) {
     status.className = 'status err';
     status.textContent = '错误：' + e.message;
