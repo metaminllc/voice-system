@@ -3,10 +3,16 @@ a mode, and produce the response via Claude.
 
 Three modes:
 
-  * ``pressure``   — **analytical**, not voiced. Produces a three-segment
-                      diagnostic: 她写过的 / 张力所在 / 压力方向. Useful during
-                      revision when you want to see where her voice would push,
-                      with the pressure points named and grounded in retrieval.
+  * ``pressure``   — **analytical**, not voiced. Produces a four-segment
+                      diagnostic wrapped in ━ dividers:
+                        1. 她写过的   — retrieved corpus evidence
+                        2. 张力所在   — where draft and her texts collide
+                        3. 压力方向   — the angle she'd push from
+                        4. Subtext    — what the rebuttal is protecting or
+                                         avoiding, cited against interior.md /
+                                         arc.md with a 高/低 confidence marker
+                      Subtext is reference material for the user — not her
+                      voice. First-person ventriloquism is explicitly banned.
   * ``dialogue``   — voiced short exchange. *Not yet tuned — experimental.*
   * ``annotation`` — voiced per-sentence margin notes. *Not yet tuned —
                       experimental.*
@@ -40,30 +46,39 @@ def _get_client() -> anthropic.Anthropic:
 
 MODE_INSTRUCTIONS: dict[str, str] = {
     "pressure": (
-        "【模式：施压 pressure（分析，不是代笔）】\n"
-        "你的任务不是替她说话，而是以上述人格文件为参照，冷静地诊断这段草稿。"
-        "严格按下面三段结构输出，段名就用中文标题，不要改写：\n\n"
-        "## 她写过的\n"
-        "从检索到的片段中挑出 2 到 4 处和这段草稿直接相关的材料。每一处给一两行"
-        "要点式概括，并在末尾用括号注明来源与置信度——例如：（来自《魔山》评论 "
-        "essay / affirm）、（来自对话 paraphrase / linked_via:8303）。"
+        "【模式：施压 pressure（四段诊断，不是代笔）】\n"
+        "你的任务不是替她说话，而是以三层人格文件（base / interior / arc）"
+        "为参照，冷静地诊断这段草稿。严格按下面的四段结构输出，段名和分隔线"
+        "都照抄，不要改写：\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "她写过的：\n"
+        "从检索到的片段中挑出 2 到 4 处和这段草稿直接相关的原文。每一处先引一两行"
+        "原文（不要概括成抽象），再另起一行用破折号标注来源，格式：\n"
+        "  — 来源文件（置信度：exact / paraphrase / inference）\n"
         "对于 inference 级别的对话片段，明确标注「根据她一贯立场推断」。"
-        "检索结果里若有 `_retrieval_reason=linked_via:<stem>`，视为该 stem 出现时"
-        "主动带出的语境证据，不要当作直接命中。\n\n"
-        "## 张力所在\n"
-        "具体指出草稿里她会注意到的地方。不是泛泛的「可以更深入」——而是：\n"
-        "  - 草稿的哪一句 / 哪个词，踩到了人格文件里她的带电词汇或禁区；\n"
-        "  - 论证依赖了哪个被当作理所当然、但她会视为可疑的预设；\n"
-        "  - 有没有把个人意志叙述成了结构性问题的替代、把技术进步叙述成线性必然、"
-        "或者把复杂历史归结为几个关键人物——这类她本能抵触的推理动作；\n"
-        "  - interior 层里提到的情境差异或触发点，草稿有没有不自觉地触碰。\n"
-        "每条都要贴到草稿原文的具体位置（引一个短语或一个短句）。\n\n"
-        "## 压力方向\n"
-        "写出她会怎样施压——语气仍是分析性的，但内容要像她的反驳：从部分认同"
-        "开始，然后撬动预设，以「这个问题比你说的更难」类的开放张力收束。"
-        "这一段不超过 4 句，不要铺陈，不要给整洁结论。\n\n"
-        "纪律：三段都只写分析语言，不要进入第一人称代笔；不要软化、也不要"
-        "假装比她更尖锐；arc.md 指示了当下阶段的声音状态时，以 arc 为准。"
+        "带 `_retrieval_reason=linked_via:<stem>` 的片段属于跟随出场的语境证据，"
+        "不是直接命中——写出来时要在来源行注明这一点。\n\n"
+        "张力所在：\n"
+        "一到两句话，讲清楚草稿和她的文本在哪里冲突。必须贴具体位置——"
+        "引草稿里的一个短语或短句，再点出它踩到了她的哪个带电词汇、哪个禁区、"
+        "或者哪个可疑预设。不要铺陈。\n\n"
+        "压力方向：\n"
+        "一句话，写她的反驳可能从哪个角度进入。从部分认同起步，撬动一个"
+        "可疑预设，不给整洁结论。只写一句，不要展开。\n\n"
+        "Subtext：\n"
+        "一到两句分析语言，写出这个反驳背后她可能在保护或回避什么——"
+        "是 interior.md 里已经写下的某种张力？还是 arc.md 当下阶段里暴露出的"
+        "东西？还是你从语料整体推断出的一个新维度？\n"
+        "Subtext 是给用户（我）看的参考框架，不是她本人的话——**绝对不要**用"
+        "第一人称或引用她的口吻来写。写完另起一行用破折号标注来源和置信度：\n"
+        "  — 来源：interior.md / arc.md / 语料推断（选一个或多个）\n"
+        "    置信度：高 / 低（高 = 已在 interior.md 或 arc.md 中明示；"
+        "低 = 新发现的维度，待验证）\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "通用纪律：\n"
+        "- 四段都只写分析语言，不要进入第一人称代笔；\n"
+        "- arc.md 指示了当下阶段的声音状态时，以 arc 为准（它覆盖 base）；\n"
+        "- 不要软化，也不要假装比她更尖锐。"
     ),
     "dialogue": (
         "【模式：对话 dialogue ·（实验，尚未调校）】\n"
