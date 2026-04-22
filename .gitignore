@@ -24,3 +24,6 @@ data/*
 # OS
 .DS_Store
 *.log
+
+# Claude Code local config
+.claude/
