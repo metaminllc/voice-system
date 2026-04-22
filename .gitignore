@@ -8,8 +8,10 @@ venv/
 # Env / secrets
 .env
 
-# Persona content (handwritten, personal) — template lives in base.example.md
+# Persona content (handwritten, personal) — templates live in *.example.md
 persona/base.md
+persona/interior.md
+persona/arc.md
 
 # Corpus content (sensitive / copyrighted) — keep dir structure only
 corpus/*/*

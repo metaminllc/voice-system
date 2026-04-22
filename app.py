@@ -26,6 +26,10 @@ class DialogueIn(BaseModel):
     context: Optional[str] = None
     your_note: Optional[str] = None
     confidence: Literal["exact", "paraphrase", "inference"] = "paraphrase"
+    linked_sources: Optional[list[str]] = Field(
+        default=None,
+        description="Corpus file stems this quote is semantically bound to.",
+    )
 
 
 class RebutIn(BaseModel):
@@ -57,6 +61,7 @@ def api_add_dialogue(payload: DialogueIn):
             context=payload.context,
             your_note=payload.your_note,
             confidence=payload.confidence,
+            linked_sources=payload.linked_sources,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

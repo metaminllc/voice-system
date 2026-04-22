@@ -2,6 +2,11 @@
 inferred she would say. Lives in its own ChromaDB collection so retrieval can
 distinguish a quoted fragment from a paragraph of her published prose.
 
+Dialogues may optionally declare ``linked_sources`` — the stems of corpus files
+they semantically belong with. When retrieval matches one of those corpus
+files, retrieve.py pulls every linked dialogue along with it. Fragments without
+``linked_sources`` still participate in ordinary vector retrieval.
+
 Every add also appends to data/dialogues.jsonl as a human-readable backup.
 """
 from __future__ import annotations
@@ -39,13 +44,41 @@ def _get_collection():
     return _collection
 
 
+def _normalize_links(links: Optional[List[str]]) -> List[str]:
+    """Clean / dedupe the linked-sources list. Accepts names with or without
+    extension and strips it (matches on the stem)."""
+    if not links:
+        return []
+    seen = set()
+    out: List[str] = []
+    for raw in links:
+        if not raw:
+            continue
+        stem = str(raw).strip()
+        # Tolerate a user pasting "foo.md" or "foo.txt" — match on stem.
+        for ext in (".md", ".txt", ".markdown"):
+            if stem.lower().endswith(ext):
+                stem = stem[: -len(ext)]
+                break
+        if stem and stem not in seen:
+            seen.add(stem)
+            out.append(stem)
+    return out
+
+
 def add_dialogue(
     quote: str,
     context: Optional[str] = None,
     your_note: Optional[str] = None,
     confidence: Confidence = "paraphrase",
+    linked_sources: Optional[List[str]] = None,
 ) -> Dict:
-    """Add a dialogue fragment. Writes to ChromaDB AND appends to JSONL."""
+    """Add a dialogue fragment. Writes to ChromaDB AND appends to JSONL.
+
+    ``linked_sources``: optional list of corpus file stems (e.g.
+    ``["lotr_review_20080116", "magic_mountain_essay"]``). Extensions like
+    ``.md`` / ``.txt`` are stripped for you.
+    """
     if confidence not in _VALID_CONFIDENCE:
         raise ValueError(
             f"confidence must be one of {_VALID_CONFIDENCE}, got {confidence!r}"
@@ -53,6 +86,8 @@ def add_dialogue(
     quote = quote.strip()
     if not quote:
         raise ValueError("quote must be non-empty")
+
+    links = _normalize_links(linked_sources)
 
     record_id = f"dialogue:{uuid.uuid4().hex}"
     created_at = datetime.now(timezone.utc).isoformat()
@@ -76,6 +111,10 @@ def add_dialogue(
         metadata["context"] = context
     if your_note:
         metadata["your_note"] = your_note
+    if links:
+        # Chroma metadata must be scalar. Store as comma-joined; retrieve.py
+        # splits on comma and matches stems.
+        metadata["linked_sources"] = ",".join(links)
 
     embeddings = embed_documents([doc_text])
     collection = _get_collection()
@@ -92,6 +131,7 @@ def add_dialogue(
         "context": context,
         "your_note": your_note,
         "confidence": confidence,
+        "linked_sources": links or None,
         "created_at": created_at,
     }
     DIALOGUES_JSONL.parent.mkdir(parents=True, exist_ok=True)

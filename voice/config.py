@@ -22,6 +22,15 @@ PERSONA_PATH: Path = Path(
     os.getenv("PERSONA_PATH", str(PROJECT_ROOT / "persona" / "base.md"))
 ).expanduser().resolve()
 
+# Additional persona layers — handwritten, always live as system-prompt context,
+# never vectorized.
+PERSONA_INTERIOR_PATH: Path = Path(
+    os.getenv("PERSONA_INTERIOR_PATH", str(PROJECT_ROOT / "persona" / "interior.md"))
+).expanduser().resolve()
+PERSONA_ARC_PATH: Path = Path(
+    os.getenv("PERSONA_ARC_PATH", str(PROJECT_ROOT / "persona" / "arc.md"))
+).expanduser().resolve()
+
 DIALOGUES_JSONL: Path = DATA_DIR / "dialogues.jsonl"
 
 # ---- API keys ------------------------------------------------------------
@@ -58,6 +67,7 @@ def ensure_dirs() -> None:
         CORPUS_DIR / "novels",
         CORPUS_DIR / "essays",
         CORPUS_DIR / "reviews",
+        CORPUS_DIR / "diaries",
         CORPUS_DIR / "dialogues",
         PERSONA_PATH.parent,
     ):

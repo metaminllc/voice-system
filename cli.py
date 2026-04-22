@@ -2,16 +2,17 @@
 
 Commands:
 
-    ingest           Ingest a corpus file (novel / essay / review).
-    add              Add a dialogue fragment.
+    ingest           Ingest a corpus file (novel / essay / review / diary).
+    add              Add a dialogue fragment (optionally linked to corpus files).
     list-dialogues   Show all captured dialogue fragments.
     rebut            Summon her rebuttal to a draft passage.
     retrieve         Peek at what the retriever returns for a query.
+    web              Start the web interface.
 """
 from __future__ import annotations
 
 import sys
-from typing import Optional
+from typing import List, Optional
 
 import typer
 from rich.console import Console
@@ -37,21 +38,30 @@ def cli_ingest(
     file_path: str = typer.Argument(..., help="Path to the file to ingest."),
     type_: str = typer.Option(
         ..., "--type", "-t",
-        help="Corpus type: novel | essay | review.",
+        help="Corpus type: novel | essay | review | diary.",
     ),
     date: Optional[str] = typer.Option(None, "--date", help="Date (YYYY-MM-DD or YYYY)."),
     tags: Optional[str] = typer.Option(
         None, "--tags",
         help="Comma-separated topic tags, e.g. 启蒙理性,女性",
     ),
+    stance: Optional[str] = typer.Option(
+        None, "--stance",
+        help="Her relationship to the content: affirm | resist | ambivalent | expository",
+    ),
+    stance_note: Optional[str] = typer.Option(
+        None, "--stance-note",
+        help="Free-text annotation of stance, e.g. "
+             "'对卡西尔更同情，但认为海德格尔提出了真正的问题'",
+    ),
     sentiment: Optional[str] = typer.Option(
         None, "--sentiment",
-        help="affirm | resist | ambivalent",
+        help="(legacy alias for --stance; prefer --stance)",
     ),
     book: Optional[str] = typer.Option(None, "--book", help="Book title (for reviews)."),
     judgment: Optional[str] = typer.Option(
         None, "--judgment",
-        help="Review judgment direction: affirm | resist | ambivalent",
+        help="Review judgment direction: affirm | resist | ambivalent | expository",
     ),
 ):
     """Ingest a corpus file into ChromaDB."""
@@ -60,6 +70,10 @@ def cli_ingest(
         meta["date"] = date
     if tags:
         meta["topic_tags"] = [t.strip() for t in tags.split(",") if t.strip()]
+    if stance:
+        meta["stance"] = stance
+    if stance_note:
+        meta["stance_note"] = stance_note
     if sentiment:
         meta["sentiment"] = sentiment
     if book:
@@ -90,14 +104,22 @@ def cli_add(
         "paraphrase", "--confidence",
         help="exact | paraphrase | inference",
     ),
+    link: Optional[List[str]] = typer.Option(
+        None, "--link",
+        help="Corpus file stem this quote is semantically bound to. "
+             "Pass multiple times to link against several, e.g. "
+             "--link lotr_review_20080116 --link magic_mountain_essay. "
+             "Extensions like .md/.txt are stripped automatically.",
+    ),
 ):
-    """Capture a dialogue fragment (ad-hoc)."""
+    """Capture a dialogue fragment (ad-hoc), optionally linked to corpus files."""
     try:
         record = add_dialogue(
             quote=quote,
             context=context,
             your_note=note,
             confidence=confidence,
+            linked_sources=link,
         )
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}")
@@ -106,7 +128,10 @@ def cli_add(
     console.print(
         f"[green]✓[/green] Saved dialogue fragment [dim]{record['id']}[/dim]"
     )
-    console.print(Panel(quote, title=f"confidence: {confidence}", border_style="blue"))
+    title = f"confidence: {confidence}"
+    if record.get("linked_sources"):
+        title += f"  |  linked: {', '.join(record['linked_sources'])}"
+    console.print(Panel(quote, title=title, border_style="blue"))
 
 
 @app.command("list-dialogues")
@@ -120,12 +145,19 @@ def cli_list_dialogues():
     table.add_column("Quote", style="cyan", overflow="fold", max_width=60)
     table.add_column("Context", overflow="fold", max_width=40)
     table.add_column("Confidence", style="magenta")
+    table.add_column("Linked", style="green", overflow="fold", max_width=30)
     table.add_column("Created", style="dim")
     for r in records:
+        links = r.get("linked_sources") or []
+        if isinstance(links, str):
+            links_str = links
+        else:
+            links_str = ", ".join(links)
         table.add_row(
             r.get("quote", ""),
             r.get("context") or "",
             r.get("confidence", ""),
+            links_str,
             (r.get("created_at") or "")[:19],
         )
     console.print(table)
@@ -150,7 +182,10 @@ def cli_rebut(
             label = f"{c.source_type}:{c.source_file}"
             if c.confidence:
                 label += f" ({c.confidence})"
-            console.print(f"  • [cyan]{label}[/cyan]  [dim]dist={c.distance:.3f}[/dim]")
+            reason = c.metadata.get("_retrieval_reason")
+            dist_str = "linked" if c.distance == float("inf") else f"dist={c.distance:.3f}"
+            suffix = f" [yellow]{reason}[/yellow]" if reason else ""
+            console.print(f"  • [cyan]{label}[/cyan]  [dim]{dist_str}[/dim]{suffix}")
     else:
         console.print("[yellow]No retrieved chunks — generation will lean on the persona file only.[/yellow]")
 
@@ -198,9 +233,15 @@ def cli_retrieve(
             title_parts.append(c.source_file)
         if c.confidence:
             title_parts.append(f"({c.confidence})")
-        title_parts.append(f"dist={c.distance:.3f}")
+        if c.distance == float("inf"):
+            reason = c.metadata.get("_retrieval_reason") or "linked"
+            title_parts.append(reason)
+            border = "yellow"
+        else:
+            title_parts.append(f"dist={c.distance:.3f}")
+            border = "blue"
         console.print(
-            Panel(c.text, title=" ".join(title_parts), border_style="blue")
+            Panel(c.text, title=" ".join(title_parts), border_style=border)
         )
 
 
